@@ -81,16 +81,6 @@ def main():
     
     st.divider()
     
-    # Initialize assistant
-    if 'assistant' not in st.session_state:
-        with st.spinner("Initializing AI Operations Assistant..."):
-            try:
-                st.session_state.assistant = AIOpsAssistant()
-                st.success("✅ Assistant initialized successfully!")
-            except Exception as e:
-                st.error(f"❌ Failed to initialize: {e}")
-                st.stop()
-    
     # Task input
     st.subheader("📝 Enter Your Task")
     task = st.text_area(
@@ -111,6 +101,8 @@ def main():
         st.session_state.results = None
         st.session_state.verification = None
         st.session_state.plan = None
+        if 'assistant' in st.session_state:
+            del st.session_state.assistant
         st.rerun()
     
     # Example tasks
@@ -133,6 +125,29 @@ def main():
         st.subheader("🔄 Processing")
         
         try:
+            # Lazy import and initialization (only when needed)
+            global AIOpsAssistant
+            if AIOpsAssistant is None:
+                from main import AIOpsAssistant
+            
+            # Initialize assistant lazily (only when needed)
+            if 'assistant' not in st.session_state:
+                with st.spinner("Initializing AI Operations Assistant..."):
+                    try:
+                        st.session_state.assistant = AIOpsAssistant()
+                        st.success("✅ Assistant initialized successfully!")
+                    except Exception as e:
+                        st.error(f"❌ Failed to initialize: {e}")
+                        st.error("Please ensure all required API keys are configured in Streamlit secrets.")
+                        st.info("""
+                        Required secrets:
+                        - NVIDIA_API_KEY
+                        - NVIDIA_MODEL (optional, defaults to meta/llama-3.1-8b-instruct)
+                        - WEATHER_API_KEY
+                        - NEWS_API_KEY
+                        """)
+                        st.stop()
+            
             # Planning phase
             with st.spinner("📋 Creating execution plan..."):
                 plan = st.session_state.assistant.planner.create_plan(task)
@@ -177,8 +192,13 @@ def main():
     # Sidebar with system info
     with st.sidebar:
         st.header("🔧 System Info")
-        st.info(f"**Model**: {st.session_state.assistant.llm.model}")
-        st.info(f"**Tools Available**: GitHub, Weather, News")
+        
+        if 'assistant' in st.session_state:
+            st.info(f"**Model**: {st.session_state.assistant.llm.model}")
+        else:
+            st.info("Assistant not initialized yet")
+        
+        st.info("**Tools Available**: GitHub, Weather, News")
         
         st.header("📖 About")
         st.markdown("""
